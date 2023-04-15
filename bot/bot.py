@@ -137,7 +137,7 @@ async def retry_handle(update: Update, context: CallbackContext):
     await message_handle(update, context, message=last_dialog_message["user"], use_new_dialog_timeout=False)
 
 
-async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True):
+async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True, audio_only=False):
     # check if message is edited
     if update.edited_message is not None:
         await edited_message_handle(update, context)
@@ -163,7 +163,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
         try:
             # send placeholder message to user
-            placeholder_message = await update.message.reply_text("...")
+            if not audio_only:
+                placeholder_message = await update.message.reply_text("...")
 
             # send typing action
             await update.message.chat.send_action(action="typing")
@@ -177,7 +178,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             }[openai_utils.CHAT_MODES[chat_mode]["parse_mode"]]
 
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
-            if config.enable_message_streaming:
+            if config.enable_message_streaming and not audio_only:
                 gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
             else:
                 answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
@@ -201,19 +202,23 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
                     continue
 
-                try:
-                    await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id, parse_mode=parse_mode)
-                except telegram.error.BadRequest as e:
-                    if str(e).startswith("Message is not modified"):
-                        continue
-                    else:
-                        await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id)
+                if not audio_only:
+                    try:
+                        await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id, parse_mode=parse_mode)
+                    except telegram.error.BadRequest as e:
+                        if str(e).startswith("Message is not modified"):
+                            continue
+                        else:
+                            await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id)
 
                 await asyncio.sleep(0.01)  # wait a bit to avoid flooding
 
                 prev_answer = answer
 
-                print(f'answer: {answer}')
+            # Send the message to the eleventy labs handler
+            if config.enable_eleven_labs and audio_only:
+                # Send placeholder message and typing actions
+                await eleventy_labs_handler(update, context, answer)
 
             # update user data
             new_dialog_message = {"user": _message, "bot": answer, "date": datetime.now()}
@@ -222,11 +227,6 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 db.get_dialog_messages(user_id, dialog_id=None) + [new_dialog_message],
                 dialog_id=None
             )
-
-            # Send the message to the eleventy labs handler
-            if config.enable_eleven_labs:
-                # Send placeholder message and typing actions
-                await eleventy_labs_handler(update, context, answer)
 
             db.update_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
 
@@ -307,7 +307,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     # update n_transcribed_seconds
     db.set_user_attribute(user_id, "n_transcribed_seconds", voice.duration + db.get_user_attribute(user_id, "n_transcribed_seconds"))
 
-    await message_handle(update, context, message=transcribed_text)
+    await message_handle(update, context, message=transcribed_text, audio_only=True)
 
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
