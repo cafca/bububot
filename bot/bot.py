@@ -5,6 +5,7 @@ import traceback
 import html
 import json
 import tempfile
+from eleventy_labs_utils import eleventy_labs_handler
 import pydub
 from pathlib import Path
 from datetime import datetime
@@ -33,10 +34,14 @@ import config
 import database
 import openai_utils
 
-
 # setup
 db = database.Database()
 logger = logging.getLogger(__name__)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(console_handler)
 
 user_semaphores = {}
 user_tasks = {}
@@ -208,6 +213,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
                 prev_answer = answer
 
+                print(f'answer: {answer}')
+
             # update user data
             new_dialog_message = {"user": _message, "bot": answer, "date": datetime.now()}
             db.set_dialog_messages(
@@ -215,6 +222,11 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 db.get_dialog_messages(user_id, dialog_id=None) + [new_dialog_message],
                 dialog_id=None
             )
+
+            # Send the message to the eleventy labs handler
+            if config.enable_eleven_labs:
+                # Send placeholder message and typing actions
+                await eleventy_labs_handler(update, context, answer)
 
             db.update_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
 
