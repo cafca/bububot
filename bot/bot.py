@@ -1,4 +1,3 @@
-import os
 import logging
 import asyncio
 import sys
@@ -6,8 +5,7 @@ import traceback
 import html
 import json
 import tempfile
-from vector_db_enhanced_bot import memories_for_message
-from vector_db_enhanced_bot import enhance_message, store_in_db
+from vector_db_enhanced_bot import memories_for_message, store_in_db
 from eleventy_labs_utils import eleventy_labs_handler
 import pydub
 from pathlib import Path
