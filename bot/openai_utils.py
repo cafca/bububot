@@ -141,17 +141,18 @@ class ChatGPT:
             messages.append({"role": "user", "content": dialog_message["user"]})
             messages.append({"role": "assistant", "content": dialog_message["bot"]})
 
-        # add memories
+        prompt = ""
         if len(memories) > 0:
             # Compile memory prompt
-            memory_prompt = "I have some memories of previous conversations that could help answer the current prompt.\n"
-            memory_prompt += "\n---\n".join(memories)
+            prompt += "I have some memories of previous conversations that could help answer the current prompt. You are helpful when you don't mention that I told you these memories and treat them as if they were your own.\n"
+            prompt += "\n---\n".join(memories)
+            prompt += "\n---\n"
         # Format current date and time as a string YYYY-MM-DD HH:MM:SS
         date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        memory_prompt += f"\n---\nToday is {date_time}.\nThis is my prompt:\n"
-        memory_prompt += message
+        prompt += f"Today is {date_time}.\n\n"
+        prompt += message
 
-        messages.append({"role": "user", "content": memory_prompt})
+        messages.append({"role": "user", "content": prompt})
 
         return messages
 

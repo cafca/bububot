@@ -137,7 +137,7 @@ async def retry_handle(update: Update, context: CallbackContext):
 
     await message_handle(update, context, message=last_dialog_message["user"], use_new_dialog_timeout=False)
 
-async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True, audio_only=False):
+async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True, send_audio=False):
     # check if message is edited
     if update.edited_message is not None:
         await edited_message_handle(update, context)
@@ -163,8 +163,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
         try:
             # send placeholder message to user
-            if not audio_only:
-                placeholder_message = await update.message.reply_text("...")
+            placeholder_message = await update.message.reply_text("...")
 
             # send typing action
             await update.message.chat.send_action(action="typing")
@@ -180,7 +179,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             memories = memories_for_message(str(user_id), _message)
 
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
-            if config.enable_message_streaming and not audio_only:
+            if config.enable_message_streaming:
                 gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, memories=memories, chat_mode=chat_mode)
             else:
                 answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
@@ -218,7 +217,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 prev_answer = answer
 
             # Send the message to the eleventy labs handler
-            if config.enable_eleven_labs and audio_only:
+            if config.enable_eleven_labs and send_audio:
                 # Send placeholder message and typing actions
                 await eleventy_labs_handler(update, context, answer)
 
@@ -313,7 +312,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     # update n_transcribed_seconds
     db.set_user_attribute(user_id, "n_transcribed_seconds", voice.duration + db.get_user_attribute(user_id, "n_transcribed_seconds"))
 
-    await message_handle(update, context, message=transcribed_text, audio_only=True)
+    await message_handle(update, context, message=transcribed_text, send_audio=True)
 
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
