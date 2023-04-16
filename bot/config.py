@@ -24,6 +24,10 @@ mongodb_uri = f"mongodb://mongo:{config_env['MONGODB_PORT']}"
 enable_eleven_labs = config_yaml.get("enable_eleven_labs", False)
 eleven_labs_api_key = config_yaml.get("eleven_labs_api_key", None)
 
+# pinecone
+pinecone_api_key = config_yaml.get("pinecone_api_key", None)
+pinecone_environment = config_yaml.get("pinecone_environment", None)
+
 # chat_modes
 with open(config_dir / "chat_modes.yml", 'r') as f:
     chat_modes = yaml.safe_load(f)

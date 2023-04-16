@@ -2,6 +2,8 @@ import config
 
 import tiktoken
 import openai
+from datetime import datetime
+
 openai.api_key = config.openai_api_key
 
 
@@ -21,7 +23,7 @@ class ChatGPT:
         assert model in {"text-davinci-003", "gpt-3.5-turbo", "gpt-4"}, f"Unknown model: {model}"
         self.model = model
 
-    async def send_message(self, message, dialog_messages=[], chat_mode="assistant"):
+    async def send_message(self, message, dialog_messages=[], memories=[], chat_mode="assistant"):
         if chat_mode not in CHAT_MODES.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
@@ -30,7 +32,7 @@ class ChatGPT:
         while answer is None:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
-                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, memories=memories)
                     r = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,
@@ -61,7 +63,7 @@ class ChatGPT:
 
         return answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
-    async def send_message_stream(self, message, dialog_messages=[], chat_mode="assistant"):
+    async def send_message_stream(self, message, dialog_messages=[], memories=[], chat_mode="assistant"):
         if chat_mode not in CHAT_MODES.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
@@ -70,7 +72,7 @@ class ChatGPT:
         while answer is None:
             try:
                 if self.model in {"gpt-3.5-turbo", "gpt-4"}:
-                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode)
+                    messages = self._generate_prompt_messages(message, dialog_messages, chat_mode, memories=memories)
                     r_gen = await openai.ChatCompletion.acreate(
                         model=self.model,
                         messages=messages,
@@ -130,14 +132,26 @@ class ChatGPT:
 
         return prompt
 
-    def _generate_prompt_messages(self, message, dialog_messages, chat_mode):
+    def _generate_prompt_messages(self, message, dialog_messages, chat_mode, memories=[]):
         prompt = CHAT_MODES[chat_mode]["prompt_start"]
 
         messages = [{"role": "system", "content": prompt}]
+
         for dialog_message in dialog_messages:
             messages.append({"role": "user", "content": dialog_message["user"]})
             messages.append({"role": "assistant", "content": dialog_message["bot"]})
-        messages.append({"role": "user", "content": message})
+
+        # add memories
+        if len(memories) > 0:
+            # Compile memory prompt
+            memory_prompt = "I have some memories of previous conversations that could help answer the current prompt.\n"
+            memory_prompt += "\n---\n".join(memories)
+        # Format current date and time as a string YYYY-MM-DD HH:MM:SS
+        date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        memory_prompt += f"\n---\nToday is {date_time}.\nThis is my prompt:\n"
+        memory_prompt += message
+
+        messages.append({"role": "user", "content": memory_prompt})
 
         return messages
 

@@ -12,15 +12,15 @@ services:
     # TODO: add auth
 
   chatgpt_telegram_bot:
-      container_name: chatgpt_telegram_bot
-      restart: always
-      build:
-        context: "."
-        dockerfile: Dockerfile
-      volumes:
-        - .:/code
-      depends_on:
-        - mongo
+    container_name: chatgpt_telegram_bot
+    restart: always
+    build:
+      context: "."
+      dockerfile: Dockerfile
+    volumes:
+      - .:/code
+    depends_on:
+      - mongo
 
   mongo_express:
     container_name: mongo-express
