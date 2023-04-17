@@ -21,7 +21,7 @@ enable_message_streaming = config_yaml.get("enable_message_streaming", True)
 mongodb_uri = f"mongodb://mongo:{config_env['MONGODB_PORT']}"
 
 # eleventy_labs
-enable_eleven_labs = config_yaml.get("enable_eleven_labs", False)
+enable_voice_replies = config_yaml.get("enable_voice_replies", False)
 eleven_labs_api_key = config_yaml.get("eleven_labs_api_key", None)
 
 # pinecone

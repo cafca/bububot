@@ -217,7 +217,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 prev_answer = answer
 
             # Send the message to the eleventy labs handler
-            if config.enable_eleven_labs and send_audio:
+            if db.get_user_attribute(user_id, "enable_voice_replies") and send_audio:
                 # Send placeholder message and typing actions
                 await eleventy_labs_handler(update, context, answer)
 
@@ -372,6 +372,19 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
     await query.edit_message_text(f"{openai_utils.CHAT_MODES[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML)
 
 
+async def toggle_voice_replies_handle(update: Update, context: CallbackContext):
+    await register_user_if_not_exists(update, context, update.message.from_user)
+    if await is_previous_message_not_answered_yet(update, context): return
+
+    user_id = update.message.from_user.id
+    db.set_user_attribute(user_id, "last_interaction", datetime.now())
+
+    current_voice_replies = db.get_user_attribute(user_id, "enable_voice_replies")
+    db.set_user_attribute(user_id, "enable_voice_replies", not current_voice_replies)
+
+    await update.message.reply_text(f"🔊 Voice replies: <b>{'ON' if not current_voice_replies else 'OFF'}</b>", parse_mode=ParseMode.HTML)
+
+
 def get_settings_menu(user_id: int):
     current_model = db.get_user_attribute(user_id, "current_model")
     text = config.models["info"][current_model]["description"]
@@ -426,6 +439,55 @@ async def set_settings_handle(update: Update, context: CallbackContext):
     except telegram.error.BadRequest as e:
         if str(e).startswith("Message is not modified"):
             pass
+
+async def voice_settings_handle(update: Update, context: CallbackContext):
+    """
+    Display info about the current voice implementation (Eleven Labs).
+    Present an inline button that toggles voice replies on/off.
+    """
+    await register_user_if_not_exists(update, context, update.message.from_user)
+    if await is_previous_message_not_answered_yet(update, context): return
+
+    user_id = update.message.from_user.id
+    db.set_user_attribute(user_id, "last_interaction", datetime.now())
+
+    current_voice_replies = db.get_user_attribute(user_id, "enable_voice_replies")
+
+    text = "🔊 Voice replies are currently <b>{}</b>.".format("ON" if current_voice_replies else "OFF")
+    text += "\n\n"
+    text += "You can toggle voice replies on/off by clicking the button below."
+
+    keyboard = [[InlineKeyboardButton("Toggle voice replies", callback_data="toggle_voice_replies")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    print(f"Sending voice settings to user {user_id}")
+
+    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+
+
+async def set_voice_settings_handle(update: Update, context: CallbackContext):
+    """
+    Toggle voice replies on/off.
+    """
+    await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
+    user_id = update.callback_query.from_user.id
+
+    query = update.callback_query
+    await query.answer()
+
+    current_voice_replies = db.get_user_attribute(user_id, "enable_voice_replies")
+    db.set_user_attribute(user_id, "enable_voice_replies", not current_voice_replies)
+
+    text = "🔊 Voice replies are now <b>{}</b>.".format("ON" if not current_voice_replies else "OFF")
+    text += "\n\n"
+    text += "You can toggle voice replies on/off by clicking the button below."
+
+    keyboard = [[InlineKeyboardButton("Toggle voice replies", callback_data="toggle_voice_replies")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    print(f"Toggled voice replies for user {user_id} to {not current_voice_replies}")
+
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 
 async def show_balance_handle(update: Update, context: CallbackContext):
@@ -537,6 +599,10 @@ def run_bot() -> None:
 
     application.add_handler(CommandHandler("settings", settings_handle, filters=user_filter))
     application.add_handler(CallbackQueryHandler(set_settings_handle, pattern="^set_settings"))
+
+    # Settings to toggle voice replies on/off
+    application.add_handler(CommandHandler("voice_settings", voice_settings_handle, filters=user_filter))
+    application.add_handler(CallbackQueryHandler(set_voice_settings_handle, pattern="^toggle_voice_replies"))
 
     application.add_handler(CommandHandler("balance", show_balance_handle, filters=user_filter))
 

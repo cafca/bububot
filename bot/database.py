@@ -47,6 +47,8 @@ class Database:
             "current_chat_mode": "assistant",
             "current_model": config.models["available_text_models"][0],
 
+            "enable_voice_replies": config.enable_voice_replies,
+
             "n_used_tokens": {},
 
             "n_transcribed_seconds": 0.0  # voice message transcription
