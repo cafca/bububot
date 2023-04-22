@@ -1,0 +1,14 @@
+# .dockerignore for Python projects
+
+*.pyc
+*.pyo
+*.pyd
+
+# Git
+.git
+
+# Virtualenv
+.venv
+
+# Visual Studio Code
+.vscode

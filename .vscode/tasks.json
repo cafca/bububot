@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Rebuild chatgpt_telegram_bot",
+            "type": "shell",
+            "command": "docker-compose up --build -d chatgpt_telegram_bot",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Restart chatgpt_telegram_bot",
+            "type": "shell",
+            "command": "sudo docker-compose restart chatgpt_telegram_bot",
+            "problemMatcher": []
+        },
+        {
+            "label": "Show chatgpt_telegram_bot logs",
+            "type": "shell",
+            "command": "sudo docker-compose logs -f chatgpt_telegram_bot",
+            "problemMatcher": []
+        },
+        {
+            "label": "Restart and show chatgpt_telegram_bot logs",
+            "dependsOn": [
+                "Restart chatgpt_telegram_bot",
+                "Show chatgpt_telegram_bot logs"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        }
+    ]
+}

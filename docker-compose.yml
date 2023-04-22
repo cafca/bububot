@@ -11,6 +11,15 @@ services:
       - ${MONGODB_PATH:-./mongodb}:/data/db
     # TODO: add auth
 
+  # chatgpt_telegram_bot:
+  #   container_name: chatgpt_telegram_bot
+  #   restart: always
+  #   image: xr500/chatgpt_telegram_bot:latest
+  #   volumes:
+  #     - .:/code
+  #   depends_on:
+  #     - mongo
+
   chatgpt_telegram_bot:
     container_name: chatgpt_telegram_bot
     restart: always

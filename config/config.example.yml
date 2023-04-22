@@ -12,7 +12,7 @@ whisper_price_per_1_min: 0.006
 
 
 # eleven labs
-enable_eleven_labs: false
+enable_voice_replies: false
 eleven_labs_api_key: "" 
 
 # pinecone

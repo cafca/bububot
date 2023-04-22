@@ -20,7 +20,7 @@ async def eleventy_labs_handler(update, context, answer):
     await update.message.chat.send_action(action="typing")
 
     # get the default voice id
-    voice_id = VOICE_IDS['vincent']
+    voice_id = VOICE_IDS['default']
 
     # get the api key from the config
     api_key = config.eleven_labs_api_key
