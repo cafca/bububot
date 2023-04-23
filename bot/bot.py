@@ -176,7 +176,10 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 "markdown": ParseMode.MARKDOWN
             }[openai_utils.CHAT_MODES[chat_mode]["parse_mode"]]
 
-            memories = memories_for_message(str(user_id), _message)
+            if db.get_user_attribute(user_id, "enable_memories") and db.get_user_attribute(user_id, "use_memories_for_responses"):
+                memories = memories_for_message(str(user_id), _message)
+            else:
+                memories = []
 
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
             if config.enable_message_streaming:
@@ -223,7 +226,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
             
             # Store the user message and the bot response in the database
-            await store_in_db(_message, answer, str(update.message.chat_id))
+            if db.get_user_attribute(user_id, "enable_memories"):
+                await store_in_db(_message, answer, str(update.message.chat_id))
 
             # update user data
             new_dialog_message = {"user": _message, "bot": answer, "date": datetime.now()}
@@ -489,6 +493,71 @@ async def set_voice_settings_handle(update: Update, context: CallbackContext):
 
     await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
+async def memory_settings_handle(update: Update, context: CallbackContext):
+    """
+    Allow enabling and disabling memory support.
+    """
+    await register_user_if_not_exists(update, context, update.message.from_user)
+    if await is_previous_message_not_answered_yet(update, context): return
+
+    user_id = update.message.from_user.id
+    db.set_user_attribute(user_id, "last_interaction", datetime.now())
+
+    current_memory = db.get_user_attribute(user_id, "enable_memories")
+    memory_retrieval = db.get_user_attribute(user_id, "use_memories_for_responses")
+
+    text = "🧠 Memory is <b>{}</b>.\n".format("ON" if current_memory else "OFF")
+    text += "🧠 Memory retrieval is <b>{}</b>.".format("ON" if memory_retrieval else "OFF")
+    text += "\n\n"
+    text += "You can toggle memory alltogether or just memory retrieval by clicking the buttons below."
+
+    keyboard = [        
+        [InlineKeyboardButton("Toggle memory", callback_data="toggle_memory")],
+        [InlineKeyboardButton("Toggle memory retrieval", callback_data="toggle_memory_retrieval")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+
+    print(f"Sending memory settings to user {user_id}")
+
+    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+
+async def set_memory_settings_handle(update: Update, context: CallbackContext):
+    """
+    Toggle memory or memory retrival on/off.
+    """
+    await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
+    user_id = update.callback_query.from_user.id
+
+    query = update.callback_query
+    await query.answer()
+
+    current_memory = db.get_user_attribute(user_id, "enable_memories")
+    current_memory_retrieval = db.get_user_attribute(user_id, "use_memories_for_responses")
+
+    if query.data == "toggle_memory":
+        current_memory = not current_memory
+        db.set_user_attribute(user_id, "enable_memories", current_memory)
+    elif query.data == "toggle_memory_retrieval":
+        current_memory_retrieval = not current_memory_retrieval
+        db.set_user_attribute(user_id, "use_memories_for_responses", current_memory_retrieval)
+    else:
+        raise Exception(f"Unknown memory setting '{query.data}'")
+
+
+    text = "🧠 Memory is <b>{}</b>.\n".format("ON" if current_memory else "OFF")
+    text += "🧠 Memory retrieval is <b>{}</b>.".format("ON" if current_memory_retrieval else "OFF")
+    text += "\n\n"
+    text += "You can toggle memory alltogether or just memory retrieval by clicking the buttons below."
+
+    keyboard = [        
+        [InlineKeyboardButton("Toggle memory", callback_data="toggle_memory")],
+        [InlineKeyboardButton("Toggle memory retrieval", callback_data="toggle_memory_retrieval")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 async def show_balance_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -603,6 +672,10 @@ def run_bot() -> None:
     # Settings to toggle voice replies on/off
     application.add_handler(CommandHandler("voice_settings", voice_settings_handle, filters=user_filter))
     application.add_handler(CallbackQueryHandler(set_voice_settings_handle, pattern="^toggle_voice_replies"))
+
+    # Settings to toggle memory on/off
+    application.add_handler(CommandHandler("memory_settings", memory_settings_handle, filters=user_filter))
+    application.add_handler(CallbackQueryHandler(set_memory_settings_handle, pattern="^toggle_memory"))
 
     application.add_handler(CommandHandler("balance", show_balance_handle, filters=user_filter))
 

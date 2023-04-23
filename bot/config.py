@@ -25,6 +25,7 @@ enable_voice_replies = config_yaml.get("enable_voice_replies", False)
 eleven_labs_api_key = config_yaml.get("eleven_labs_api_key", None)
 
 # pinecone
+enable_memories = config_yaml.get("enable_memories", False)
 pinecone_api_key = config_yaml.get("pinecone_api_key", None)
 pinecone_environment = config_yaml.get("pinecone_environment", None)
 

@@ -49,6 +49,9 @@ class Database:
 
             "enable_voice_replies": config.enable_voice_replies,
 
+            "enable_memories": config.enable_memories,
+            "use_memories_for_responses": True,
+
             "n_used_tokens": {},
 
             "n_transcribed_seconds": 0.0  # voice message transcription
