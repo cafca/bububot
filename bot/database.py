@@ -50,7 +50,7 @@ class Database:
             "enable_voice_replies": config.enable_voice_replies,
 
             "enable_memories": config.enable_memories,
-            "use_memories_for_responses": True,
+            "use_memories_for_responses": False,
 
             "n_used_tokens": {},
 
